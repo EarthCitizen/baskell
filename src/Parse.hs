@@ -72,7 +72,7 @@ commandFile :: Parsec.Parsec String () AST
 commandFile = do
     cmds <- Parsec.manyTill command (Parsec.try endOfFile)
     Parsec.eof
-    return $ AST (Block cmds)
+    return $ AST $ Main (Block cmds)
 
 parseFile :: String -> IO (Either ParseError AST)
 parseFile = parseFromFile commandFile

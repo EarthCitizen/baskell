@@ -2,6 +2,7 @@ import System.Environment
 
 import Exec
 import Parse
+import Compile
 
 main :: IO ()
 main = do
@@ -9,5 +10,7 @@ main = do
     o <- parseFile $ head f
     case o of
         (Left err)  -> print err
-        (Right (AST block)) -> exec block
+        (Right (AST main)) -> do
+            exec main
+            compileToC "out.c" main
     return ()
