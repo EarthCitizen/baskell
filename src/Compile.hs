@@ -15,8 +15,6 @@ compileToC outFile (Main b) = do
     appendFile outFile "}\n"
     appendFile outFile "\n"
 
-compileToC outFile (Block xs) = do
-    mapM_ (compileToC outFile) xs
-    return ()
+compileToC outFile (Block xs) = mapM_ (compileToC outFile) xs
 
 compileToC outFile (Print s) = appendFile outFile $ "printf(\"" ++ s ++ "\\n\");\n"
