@@ -1,20 +1,31 @@
-module Compile (compileToC) where
+module Compile (compileToBASH, compileToC, compileToJS, compileToFileWith) where
 
 import System.IO
 import Element
 
+compileToFileWith :: Element -> FilePath -> (Element -> [String]) -> IO ()
+compileToFileWith element fileName compiler =
+  writeFile fileName $ unlines $ compiler element
 
-compileToC :: String -> Element -> IO ()
-compileToC outFile (Main b) = do
-    writeFile  outFile "#include <stdio.h>\n"
-    appendFile outFile "\n"
-    appendFile outFile "int main(int argc, char **argv)\n"
-    appendFile outFile "{\n"
-    compileToC outFile b
-    appendFile outFile "return 0;\n"
-    appendFile outFile "}\n"
-    appendFile outFile "\n"
+compileToC :: Element -> [String]
+compileToC (Main b) =
+    [ "#include <stdio.h>"
+    , ""
+    , "int main(int argc, char **argv)"
+    , "{" ] ++
+    compileToC b ++
+    [ "return 0;"
+    , "}"
+    , "" ]
+compileToC (Block xs) = concat $ map (compileToC) xs
+compileToC (Print s) = [ "printf(\"" ++ s ++ "\\n\");" ]
 
-compileToC outFile (Block xs) = mapM_ (compileToC outFile) xs
+compileToJS :: Element -> [String]
+compileToJS (Main b) = compileToJS b
+compileToJS (Block xs) = concat $ map (compileToJS) xs
+compileToJS (Print s) = ["console.log(\"" ++ s ++ "\");"]
 
-compileToC outFile (Print s) = appendFile outFile $ "printf(\"" ++ s ++ "\\n\");\n"
+compileToBASH :: Element -> [String]
+compileToBASH (Main b) = compileToBASH b
+compileToBASH (Block xs) = concat $ map (compileToBASH) xs
+compileToBASH (Print s) = ["printf \"" ++ s ++ "\\n\""]

@@ -12,5 +12,7 @@ main = do
         (Left err)  -> print err
         (Right (AST main)) -> do
             exec main
-            compileToC "out.c" main
+            compileToFileWith main "out.c"  compileToC
+            compileToFileWith main "out.js" compileToJS
+            compileToFileWith main "out.sh" compileToBASH
     return ()
