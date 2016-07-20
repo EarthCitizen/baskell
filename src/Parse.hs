@@ -32,22 +32,34 @@ escapedChar = do
     ec <- Parsec.oneOf "bntr"
     return $ escapedCharToActual ec
 
-quotedString :: Parsec.Parsec String () String
+quotedString :: Parsec.Parsec String () Expression
 quotedString = do
     doubleQuoteChar
     qs <- Parsec.many $ Parsec.choice [escapedChar, Parsec.noneOf "\\\""]
     doubleQuoteChar
-    return qs
+    return $ StringValue qs
 
-integerLiteral :: Parsec.Parsec String () String
-integerLiteral = Parsec.many1 Parsec.digit
+booleanLiteral :: Parsec.Parsec String () Expression
+booleanLiteral = do
+    bs <- Parsec.choice [Parsec.string "true", Parsec.string "false"]
+    return $ BooleanValue $ convBool bs
+    where convBool "true" = True
+          convBool "false" = False
+
+integerLiteral :: Parsec.Parsec String () Expression
+integerLiteral = do
+    is <- Parsec.many1 Parsec.digit
+    return $ IntegerValue (read is :: Integer)
+
+expression :: Parsec.Parsec String () Expression
+expression = Parsec.choice [quotedString, booleanLiteral, integerLiteral]
 
 printCommand :: Parsec.Parsec String () Element
 printCommand = do
     Parsec.string "print"
     Parsec.many1 Parsec.space
-    sv <- Parsec.choice [quotedString, integerLiteral]
-    return (Print $ StringValue sv)
+    ev <- expression
+    return (Print ev)
 
 endOfCommand :: Parsec.Parsec String () ()
 endOfCommand = do

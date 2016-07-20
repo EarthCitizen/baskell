@@ -3,3 +3,7 @@ print "Hello World!"
 print "12345"
 
 print 99999
+
+print true
+
+print false
