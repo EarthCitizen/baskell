@@ -47,7 +47,7 @@ printCommand = do
     Parsec.string "print"
     Parsec.many1 Parsec.space
     sv <- Parsec.choice [quotedString, integerLiteral]
-    return (Print sv)
+    return (Print $ StringValue sv)
 
 endOfCommand :: Parsec.Parsec String () ()
 endOfCommand = do

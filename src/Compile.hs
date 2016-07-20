@@ -18,14 +18,14 @@ compileToC (Main b) =
     , "}"
     , "" ]
 compileToC (Block xs) = concat $ map (compileToC) xs
-compileToC (Print s) = [ "printf(\"" ++ s ++ "\\n\");" ]
+compileToC (Print s) = [ "printf(\"" ++ (expressionToString s) ++ "\\n\");" ]
 
 compileToJS :: Element -> [String]
 compileToJS (Main b) = compileToJS b
 compileToJS (Block xs) = concat $ map (compileToJS) xs
-compileToJS (Print s) = ["console.log(\"" ++ s ++ "\");"]
+compileToJS (Print s) = ["console.log(\"" ++ (expressionToString s) ++ "\");"]
 
 compileToBASH :: Element -> [String]
 compileToBASH (Main b) = compileToBASH b
 compileToBASH (Block xs) = concat $ map (compileToBASH) xs
-compileToBASH (Print s) = ["printf \"" ++ s ++ "\\n\""]
+compileToBASH (Print s) = ["printf \"" ++ (expressionToString s) ++ "\\n\""]
