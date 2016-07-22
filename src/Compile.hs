@@ -2,6 +2,7 @@ module Compile (compileToBASH, compileToC, compileToJS, compileToFileWith) where
 
 import System.IO
 import Element
+import Eval
 
 compileToFileWith :: Element -> FilePath -> (Element -> [String]) -> IO ()
 compileToFileWith element fileName compiler =

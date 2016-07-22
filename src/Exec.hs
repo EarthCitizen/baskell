@@ -1,6 +1,7 @@
 module Exec (exec) where
 
 import Element
+import Eval
 
 exec :: Element -> IO ()
 exec (Block []) = return ()
