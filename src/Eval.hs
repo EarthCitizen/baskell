@@ -1,6 +1,6 @@
 module Eval where
 
-import Element
+import AST
 import Error
 
 expressionToString :: Expression -> String

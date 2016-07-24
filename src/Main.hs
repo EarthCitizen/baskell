@@ -10,9 +10,9 @@ main = do
     o <- parseFile $ head f
     case o of
         (Left err)  -> print err
-        (Right (AST main)) -> do
-            exec main
-            compileToFileWith main "out.c"  compileToC
-            compileToFileWith main "out.js" compileToJS
-            compileToFileWith main "out.sh" compileToBASH
+        (Right ast) -> do
+            execAST ast
+            compileToFileWith ast "out.c"  compileToC
+            compileToFileWith ast "out.js" compileToJS
+            compileToFileWith ast "out.sh" compileToBASH
     return ()

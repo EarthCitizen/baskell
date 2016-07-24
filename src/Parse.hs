@@ -1,14 +1,12 @@
 {-# LANGUAGE FlexibleContexts #-}
 
-module Parse (AST(..), parseFile, ParseError) where
+module Parse (parseFile, ParseError) where
 
-import Element
+import AST
 
 import qualified Text.Parsec as Parsec hiding (ParseError)
 import Text.Parsec (ParseError, (<?>), (<|>))
 import Text.Parsec.String (parseFromFile)
-
-data AST = AST Element
 
 spaceChar :: Parsec.Parsec String () Char
 spaceChar = Parsec.char ' ' <?> "space"
@@ -54,15 +52,15 @@ integerLiteral = do
 expression :: Parsec.Parsec String () Expression
 expression = Parsec.choice [quotedString, booleanLiteral, integerLiteral]
 
-printCommand :: Parsec.Parsec String () Element
-printCommand = do
+printStatement :: Parsec.Parsec String () Statement
+printStatement = do
     Parsec.string "print"
     Parsec.many1 Parsec.space
     ev <- expression
-    return (Print ev)
+    return (PrintStatement ev)
 
-endOfCommand :: Parsec.Parsec String () ()
-endOfCommand = do
+endOfStatement :: Parsec.Parsec String () ()
+endOfStatement = do
     Parsec.skipMany spaceChar
     Parsec.skipMany1 Parsec.endOfLine <|> Parsec.eof
     return ()
@@ -73,18 +71,18 @@ endOfFile = do
     Parsec.eof
     return ()
 
-command :: Parsec.Parsec String () Element
-command = do
+statement :: Parsec.Parsec String () Statement
+statement = do
     Parsec.skipMany whiteSpace
-    ast <- printCommand <?> "print command"
-    endOfCommand
+    ast <- printStatement <?> "print command"
+    endOfStatement
     return ast
 
-commandFile :: Parsec.Parsec String () AST
-commandFile = do
-    cmds <- Parsec.manyTill command (Parsec.try endOfFile)
+programFile :: Parsec.Parsec String () AST
+programFile = do
+    cmds <- Parsec.manyTill statement (Parsec.try endOfFile)
     Parsec.eof
     return $ AST $ Main (Block cmds)
 
 parseFile :: String -> IO (Either ParseError AST)
-parseFile = parseFromFile commandFile
+parseFile = parseFromFile programFile

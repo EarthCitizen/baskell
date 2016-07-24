@@ -2,7 +2,7 @@ module EvalSpec (spec) where
 
 import Test.QuickCheck
 import Test.Hspec
-import Element
+import AST
 import Eval (eval)
 import Error
 import Debug.Trace

@@ -1,32 +1,59 @@
 module Compile (compileToBASH, compileToC, compileToJS, compileToFileWith) where
 
 import System.IO
-import Element
+import AST
 import Eval
 
-compileToFileWith :: Element -> FilePath -> (Element -> [String]) -> IO ()
-compileToFileWith element fileName compiler =
-  writeFile fileName $ unlines $ compiler element
+compileToFileWith :: AST -> FilePath -> (AST -> [String]) -> IO ()
+compileToFileWith ast fileName compiler =
+  writeFile fileName $ unlines $ compiler ast
 
-compileToC :: Element -> [String]
-compileToC (Main b) =
+-- C
+
+compileToC :: AST -> [String]
+compileToC (AST m) = compileMainToC m
+
+compileMainToC :: Main -> [String]
+compileMainToC (Main b) =
     [ "#include <stdio.h>"
     , ""
     , "int main(int argc, char **argv)"
     , "{" ] ++
-    compileToC b ++
+    compileBlockToC b ++
     [ "return 0;"
     , "}"
     , "" ]
-compileToC (Block xs) = concat $ map (compileToC) xs
-compileToC (Print s) = [ "printf(\"" ++ (expressionToString s) ++ "\\n\");" ]
 
-compileToJS :: Element -> [String]
-compileToJS (Main b) = compileToJS b
-compileToJS (Block xs) = concat $ map (compileToJS) xs
-compileToJS (Print s) = ["console.log(\"" ++ (expressionToString s) ++ "\");"]
+compileBlockToC :: Block -> [String]
+compileBlockToC (Block xs) = concat $ map (compileStatementToC) xs
 
-compileToBASH :: Element -> [String]
-compileToBASH (Main b) = compileToBASH b
-compileToBASH (Block xs) = concat $ map (compileToBASH) xs
-compileToBASH (Print s) = ["printf \"" ++ (expressionToString s) ++ "\\n\""]
+compileStatementToC :: Statement -> [String]
+compileStatementToC (PrintStatement s) = [ "printf(\"" ++ (expressionToString s) ++ "\\n\");" ]
+
+-- JS
+
+compileToJS :: AST -> [String]
+compileToJS (AST m) = compileMainToJS m
+
+compileMainToJS :: Main -> [String]
+compileMainToJS (Main b) = compileBlockToJS b
+
+compileBlockToJS :: Block -> [String]
+compileBlockToJS (Block xs) = concat $ map (compileStatementToJS) xs
+
+compileStatementToJS :: Statement -> [String]
+compileStatementToJS (PrintStatement s) = ["console.log(\"" ++ (expressionToString s) ++ "\");"]
+
+-- BASH
+
+compileToBASH :: AST -> [String]
+compileToBASH (AST m) = compileMainToBASH m
+
+compileMainToBASH :: Main -> [String]
+compileMainToBASH (Main b) = compileBlockToBASH b
+
+compileBlockToBASH :: Block -> [String]
+compileBlockToBASH (Block xs) = concat $ map (compileStatementToBASH) xs
+
+compileStatementToBASH :: Statement -> [String]
+compileStatementToBASH (PrintStatement s) = ["printf \"" ++ (expressionToString s) ++ "\\n\""]
