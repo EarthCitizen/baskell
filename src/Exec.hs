@@ -1,4 +1,4 @@
-module Exec (execAST) where
+module Exec (execAST, execMain, execBlock, execStatement) where
 
 import AST
 import Eval
@@ -20,3 +20,9 @@ execBlock (Block s) = mapM_ execStatement s
 
 execStatement :: Statement -> IO ()
 execStatement (PrintStatement e) = putStrLn $ expressionToString e
+execStatement (IfStatement i) = execIf i
+
+execIf :: If -> IO ()
+execIf (If expr block els) = case eval expr of
+                                (BooleanValue True) -> execBlock block
+                                (_) -> return ()
