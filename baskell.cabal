@@ -16,9 +16,11 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:      src
   exposed-modules:     Parse, Compile, AST, Error, Eval, Exec
-  build-depends:       base >= 4.7 && < 5,
-                       containers,
-                       parsec
+  build-depends:       base >= 4.7 && < 5
+                     , containers
+                     , either
+                     , parsec
+                     , transformers
   default-language:    Haskell2010
 
 executable baskell
@@ -28,7 +30,9 @@ executable baskell
   build-depends:       base
                      , baskell
                      , containers
+                     , either
                      , parsec
+                     , transformers
   default-language:    Haskell2010
 
 test-suite baskell-test
