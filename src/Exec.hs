@@ -1,4 +1,4 @@
-module Exec (execAST, execMain, execBlock, execStatement) where
+module Exec (execAST, execMain, execBlock, execStatement, execIf, execElse) where
 
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Either
@@ -37,7 +37,15 @@ execPrintStatement (PrintStatement e) = runEitherT $ do
     right ()
 
 execIf :: If -> IO (Either LangageError ())
-execIf (If expr block els) = case eval expr of
+execIf (If expr block els) = execBranch expr block els
+
+execElse :: Else -> IO (Either LangageError ())
+execElse (ElseIf expr block els) = execBranch expr block els
+
+execBranch :: Expression -> Block -> Else -> IO (Either LangageError ())
+execBranch expr block els = case eval expr of
     BooleanValue True -> execBlock block
-    BooleanValue False -> return $ Right ()
+    BooleanValue False -> case els of
+        ElseIf nextExpr nextBlock nextEls -> execBranch nextExpr nextBlock nextEls
+        EndIf -> return $ Right ()
     _ -> return $ Left $ TypeMismatchError errMsgNoNumberInBool

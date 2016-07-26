@@ -41,7 +41,7 @@ spec = do
                     (out, result) <- capture $ execStatement $ printStatementWithError
                     out `shouldBe` ""
                     result `shouldBe` (Left $ TypeMismatchError errMsgNoBooleanInNum)
-        
+
         context "when passed an IfStatement" $ do
             context "with one branch" $ do
                 context "when the expression is true" $ do
@@ -69,8 +69,66 @@ spec = do
                         (out, result) <- capture $ execStatement ifStatement
                         out `shouldBe` ""
                         result `shouldBe` (Left $ TypeMismatchError errMsgNoNumberInBool)
-            -- context "with two branches" $ do
-            --     context "when the first branch condition is true" $ do
-            --         context "when the second branch is an else if" $ do
-            --             it "executes the first branch block and returns OK" $ do
-            --                 let
+
+    describe "execIf" $ do
+        context "when passed an If" $ do
+            context "with one branch" $ do
+                context "when the expression is true" $ do
+                    context "when the block does not contain errors" $ do
+                        it "executes the block and returns OK" $ do
+                            let ifBranch = If (BooleanValue True) printStatementsBlock1 EndIf
+                            (out, result) <- capture $ execIf ifBranch
+                            out `shouldBe` "test output 1-1\ntest output 1-2\n"
+                            result `shouldBe` Right ()
+                    context "when the block contains errors" $ do
+                        it "executes the block and returns the error from the errored statement" $ do
+                            let ifBranch = If (BooleanValue True) blockWithError EndIf
+                            (out, result) <- capture $ execIf ifBranch
+                            out `shouldBe` "no error here\n"
+                            result `shouldBe` (Left $ TypeMismatchError errMsgNoBooleanInNum)
+                context "when the expression is false" $ do
+                    it "does not execute the block and returns OK" $ do
+                        let ifBranch = If (BooleanValue False) printStatementsBlock1 EndIf
+                        (out, result) <- capture $ execIf ifBranch
+                        out `shouldBe` ""
+                        result `shouldBe` Right ()
+            context "with an else if branch" $ do
+                context "when the if expression is true" $ do
+                    it "executes the if block and returns OK" $ do
+                        let elseBranch = ElseIf (BooleanValue False) printStatementsBlock2 EndIf
+                            ifBranch = If (BooleanValue True) printStatementsBlock1 elseBranch
+                        (out, result) <- capture $ execIf ifBranch
+                        out `shouldBe` "test output 1-1\ntest output 1-2\n"
+                        result `shouldBe` Right ()
+                context "when the else if expression is true" $ do
+                    it "executes the else if block and returns OK" $ do
+                        let elseBranch = ElseIf (BooleanValue True) printStatementsBlock2 EndIf
+                            ifBranch = If (BooleanValue False) printStatementsBlock1 elseBranch
+                        (out, result) <- capture $ execIf ifBranch
+                        out `shouldBe` "test output 2-1\ntest output 2-2\n"
+                        result `shouldBe` Right ()
+                it "does something" $ do
+                    (shouldBe True True) >> (shouldBe True False) >> (shouldBe True True)
+
+    describe "execElse" $ do
+        context "when passed an ElseIf" $ do
+            context "with one branch" $ do
+                context "when the expression is true" $ do
+                    context "when the block does not contain errors" $ do
+                        it "executes the block and returns OK" $ do
+                            let elseBranch = ElseIf (BooleanValue True) printStatementsBlock1 EndIf
+                            (out, result) <- capture $ execElse elseBranch
+                            out `shouldBe` "test output 1-1\ntest output 1-2\n"
+                            result `shouldBe` Right ()
+                    context "when the block contains errors" $ do
+                        it "executes the block and returns the error from the errored statement" $ do
+                            let elseBranch = ElseIf (BooleanValue True) blockWithError EndIf
+                            (out, result) <- capture $ execElse elseBranch
+                            out `shouldBe` "no error here\n"
+                            result `shouldBe` (Left $ TypeMismatchError errMsgNoBooleanInNum)
+                context "when the expression is false" $ do
+                    it "does not execute the block and returns OK" $ do
+                        let elseBranch = ElseIf (BooleanValue False) printStatementsBlock1 EndIf
+                        (out, result) <- capture $ execElse elseBranch
+                        out `shouldBe` ""
+                        result `shouldBe` Right ()
