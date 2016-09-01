@@ -17,6 +17,12 @@ data Expression = Add          Expression Expression |
                   VarValue     String  |
                   Invalid      LangageError deriving (Eq, Ord, Show)
 
+data ExprResult = ExprResBoolean Bool    |
+                  ExprResDouble  Double  |
+                  ExprResInteger Integer |
+                  ExprResInvalid LangageError  deriving (Eq, Ord, Show)
+
+
 data Else = ElseIf Expression Block Else |
             Else Block |
             EndIf
