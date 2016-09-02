@@ -1,3 +1,6 @@
+{-# LANGUAGE LambdaCase #-}
+
+import System.Environment (getArgs)
 import Test.QuickCheck
 import Control.Monad (liftM)
 import AST
@@ -7,56 +10,103 @@ newtype MathExpr = MathExpr Expression
 makeGenIntegerValue :: Integer -> Gen Expression
 makeGenIntegerValue x = return $ IntegerValue x
 
-makeAddGen :: Integer -> Gen Expression
-makeAddGen 0 = return $ Add (IntegerValue 0) (IntegerValue 0)
-makeAddGen total = do
-    subtrahend <- choose (0, total)
-    Add <$> (genMathExpr $ total - subtrahend) <*> (genMathExpr subtrahend)
+data OpConfig = OpConfig {
+    getTerms :: Integer -> Gen (Integer, Integer),
+    getCons  :: Expression -> Expression -> Expression
+}
 
-makeSubtractGen :: Integer -> Gen Expression
-makeSubtractGen 0 = return $ Subtract (IntegerValue 0) (IntegerValue 0)
-makeSubtractGen total = do
-    addend <- choose (0, total)
-    Subtract <$> (genMathExpr $ total + addend) <*> (genMathExpr addend)
+addConfig = OpConfig {
+    getTerms =
+        \case t | t == 0    -> return (0, 0)
+                | otherwise -> do
+                    t2 <- arbitrary
+                    return $ (t - t2, t2),
+    getCons = Add
+}
 
--- makeSubtractGen :: Integer -> Gen Expression
--- makeSubtractGen 0 = return $ Subtract (IntegerValue 0) (IntegerValue 0)
--- makeSubtractGen total = do
---     addend <- choose (0, total)
---     Subtract <$> (genMathExpr $ total + addend) <*> (genMathExpr addend)
+subtractConfig = OpConfig {
+    getTerms =
+        \case t | t == 0    -> return (0, 0)
+                | otherwise -> do
+                    t2 <- arbitrary
+                    return $ (t + t2, t2),
+    getCons = Subtract
+}
 
-genSubtract :: Integer -> Gen Expression
-genSubtract total = undefined
+factorize :: Integer -> [Integer]
+factorize term = let s = signum term
+                     n = s + s
+                  in [ x | x <- [s,n..term], rem term x == 0 ]
 
-genMultiply :: Integer -> Gen Expression
-genMultiply total = undefined
+multiplyConfig = OpConfig {
+    getTerms =
+        \case t | t == 0    -> return (0, 0)
+                | otherwise -> do
+                    divisor <- elements $ factorize t
+                    return $ (div t divisor, divisor),
+    getCons = Multiply
+}
 
-genDivide :: Integer -> Gen Expression
-genDivide total = undefined
+divideConfig = OpConfig {
+    getTerms =
+        \case t | t == 0    -> return (0, 1)
+                | otherwise -> do
+                    divisor <- suchThat arbitrary (/=0)
+                    return $ (t * divisor, divisor),
+    getCons = Divide
+}
 
-genMathExpr :: Integer -> Gen Expression
-genMathExpr total = oneof [makeGenIntegerValue total, makeAddGen total, makeSubtractGen total]
+type Total = Integer
+type Depth = Integer
+
+makeOpGen :: OpConfig -> Depth -> Total -> Gen Expression
+makeOpGen tc _ 0 = do
+    (t1, t2) <- getTerms tc 0
+    return $ getCons tc (IntegerValue t1) (IntegerValue t2)
+makeOpGen tc depth total
+    | depth <= 0 = makeGenIntegerValue total
+    | otherwise  = do
+        let nextDepth = depth - 1
+        (t1, t2) <- getTerms tc total
+        getCons tc <$> (genMathExpr nextDepth t1) <*> (genMathExpr nextDepth t2)
+
+makeAddGen :: Depth -> Total -> Gen Expression
+makeAddGen = makeOpGen addConfig
+
+makeSubtractGen :: Depth -> Total -> Gen Expression
+makeSubtractGen = makeOpGen subtractConfig
+
+makeMultiplyGen :: Depth -> Total -> Gen Expression
+makeMultiplyGen = makeOpGen multiplyConfig
+
+makeDivideGen :: Depth -> Total -> Gen Expression
+makeDivideGen = makeOpGen divideConfig
+
+genMathExpr :: Depth -> Total -> Gen Expression
+genMathExpr depth total = oneof [
+        makeGenIntegerValue total,
+        makeAddGen depth total,
+        makeSubtractGen depth total,
+        makeMultiplyGen depth total,
+        makeDivideGen depth total
+    ]
 
 exprToString :: Expression -> String
-exprToString (IntegerValue a) = show a
-exprToString (Subtract a b) = "(" ++ exprToString a ++ "-" ++ exprToString b ++ ")"
-exprToString (Add a b) = "(" ++ exprToString a ++ "+" ++ exprToString b ++ ")"
+exprToString (IntegerValue a) = integerValueToString a
+exprToString (Subtract a b)   = parensWithOp a b "-"
+exprToString (Add a b)        = parensWithOp a b "+"
+exprToString (Multiply a b)   = parensWithOp a b "*"
+exprToString (Divide a b)     = parensWithOp a b "/"
 
-main = (generate $ makeSubtractGen (999)) >>= return . exprToString >>= print
+integerValueToString value
+    | value < 0 = "(" ++ show value ++ ")"
+    | otherwise = show value
 
--- makeIntegerOr :: Integer -> (Integer -> Gen Expression) -> Gen Expression
--- makeIntegerOr nextTotal otherGen = oneof [makeGenIntegerValue nextTotal, otherGen nextTotal]
+parensWithOp a b op = "(" ++ exprToString a ++ op ++ exprToString b ++ ")"
 
--- genAdd :: Integer -> Gen Expression
--- genAdd = makeAddGen
---     where makeAddGen :: Integer -> Gen Expression
---           makeAddGen 0 = return $ Add (IntegerValue 0) (IntegerValue 0)
---           makeAddGen nextTotal = do
---               subtrahend <- choose (0, nextTotal)
---               Add <$> (makeIntegerOrAdd $ nextTotal - subtrahend) <*> (makeIntegerOrAdd subtrahend)
---
---           makeIntegerOrAdd :: Integer -> Gen Expression
---           makeIntegerOrAdd nextTotal = makeIntegerOr nextTotal $ makeAddGen
---
---           genAdd :: Integer -> Gen Expression
---           genAdd = makeAddGen
+main = do
+    args <- getArgs
+    let depth = read (args !! 0) :: Integer
+        total = read (args !! 1) :: Integer
+    expr <- generate $ genMathExpr depth total
+    putStrLn $ exprToString expr
