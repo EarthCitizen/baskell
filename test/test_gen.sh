@@ -1,5 +1,10 @@
 source rainbow.sh
 
+# Without the trap, the terminal gets messed up
+# and displays escape codes for the arrow keys.
+# Maybe due to the rainbow library.
+trap exit INT
+
 fail=$(echored 'Fail')
 pass=$(echogreen 'Pass')
 
@@ -8,7 +13,7 @@ pass_count=0
 
 exit_code=0
 
-test_iterations=5
+test_iterations=3
 
 for depth in {1..12}
 do

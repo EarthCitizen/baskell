@@ -1,9 +1,17 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE LambdaCase #-}
 
 import System.Environment (getArgs)
 import Test.QuickCheck
 import Control.Monad (liftM)
 import AST
+
+import Debug.Trace
+
+-- Strict, otherwise the list will be rebuilt each reference
+tenkPrimes :: [Integer]
+!tenkPrimes = [1, 2, 3, 5, 7, 9, 11, 13] ++ [ x | x <- [14..10000], (not.any ((0 ==).(rem x))) [2..(x-1)]]
+
 
 newtype MathExpr = MathExpr Expression
 
@@ -35,8 +43,10 @@ subtractConfig = OpConfig {
 
 factorize :: Integer -> [Integer]
 factorize term = let s = signum term
-                     n = s + s
-                  in [ x | x <- [s,n..term], rem term x == 0 ]
+                     a = abs term
+                     k = takeWhile (\x -> x <= a) tenkPrimes
+                     c = if a < 100000 then [1..a] else k
+                  in [ s * x | x <- c, rem a x == 0 ]
 
 multiplyConfig = OpConfig {
     getTerms =
