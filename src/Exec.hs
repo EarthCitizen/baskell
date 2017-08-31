@@ -1,4 +1,4 @@
-module Exec (execAST, execMain, execBlock, execStatement, execIf, execElse) where
+module Exec (execAST, execMain, execBlock, execStatement) where
 
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Either
@@ -27,7 +27,8 @@ execStatementList (x:xs) = do
 
 execStatement :: Statement -> IO (Either LangageError ())
 execStatement ps@(PrintStatement _) = execPrintStatement ps
-execStatement (IfStatement i) = execIf i
+execStatement (IfStatement ex bl els) = execIfStatement ex bl els
+execStatement NoOp = return $ Right ()
 
 execPrintStatement :: Statement -> IO (Either LangageError ())
 execPrintStatement (PrintStatement e) = runEitherT $ do
@@ -36,16 +37,16 @@ execPrintStatement (PrintStatement e) = runEitherT $ do
         ev -> lift $ putStrLn $ expressionToString $ ev
     right ()
 
-execIf :: If -> IO (Either LangageError ())
-execIf (If expr block els) = execBranch expr block els
+-- execIf :: If -> IO (Either LangageError ())
+-- execIf (If expr block els) = execBranch expr block els
+--
+-- execElse :: Else -> IO (Either LangageError ())
+-- execElse (ElseIf expr block els) = execBranch expr block els
 
-execElse :: Else -> IO (Either LangageError ())
-execElse (ElseIf expr block els) = execBranch expr block els
-
-execBranch :: Expression -> Block -> Else -> IO (Either LangageError ())
-execBranch expr block els = case eval expr of
+execIfStatement :: Expression -> Block -> Statement -> IO (Either LangageError ())
+execIfStatement expr block els = case eval expr of
     BooleanValue True -> execBlock block
-    BooleanValue False -> case els of
-        ElseIf nextExpr nextBlock nextEls -> execBranch nextExpr nextBlock nextEls
-        EndIf -> return $ Right ()
+    BooleanValue False -> execStatement els
+        -- ElseIf nextExpr nextBlock nextEls -> execBranch nextExpr nextBlock nextEls
+        -- EndIf -> return $ Right ()
     _ -> return $ Left $ TypeMismatchError errMsgNoNumberInBool
