@@ -5,8 +5,11 @@ import System.Environment (getArgs)
 import Test.QuickCheck
 import Control.Monad (liftM)
 import AST
+import Text.Read (readMaybe)
 
 import Debug.Trace
+
+data TotalInput = IntegerTotal Integer | DoubleTotal Double deriving (Eq, Show)
 
 -- Strict, otherwise the list will be rebuilt each reference
 tenkPrimes :: [Integer]
@@ -17,6 +20,9 @@ newtype MathExpr = MathExpr Expression
 
 makeGenIntegerValue :: Integer -> Gen Expression
 makeGenIntegerValue x = return $ IntegerValue x
+
+makeGenDoubleValue :: Double -> Gen Expression
+makeGenDoubleValue x = return $ DoubleValue x
 
 data OpConfig = OpConfig {
     getTerms :: Integer -> Gen (Integer, Integer),
@@ -114,9 +120,20 @@ integerValueToString value
 
 parensWithOp a b op = "(" ++ exprToString a ++ op ++ exprToString b ++ ")"
 
+readTotal :: String -> Maybe TotalInput
+readTotal a =
+    case (readMaybe a :: Maybe Integer) of
+        Nothing -> case (readMaybe a :: Maybe Double) of
+            Nothing -> Nothing
+            v -> fmap DoubleTotal v
+        d -> fmap IntegerTotal d
+
 main = do
     args <- getArgs
     let depth = read (args !! 0) :: Integer
-        total = read (args !! 1) :: Integer
-    expr <- generate $ genMathExpr depth total
-    putStrLn $ exprToString expr
+        total = readTotal (args !! 1)
+        -- total = read (args !! 1) :: Integer
+    -- expr <- generate $ genMathExpr depth total
+    -- putStrLn $ exprToString expr
+    print depth
+    print total

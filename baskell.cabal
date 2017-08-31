@@ -35,6 +35,17 @@ executable baskell
                      , transformers
   default-language:    Haskell2010
 
+executable gen-expr
+  hs-source-dirs:      test
+  main-is:             Gen.hs
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  build-depends:       base
+                     , baskell
+                     , hspec
+                     , silently
+                     , QuickCheck
+  default-language:    Haskell2010
+
 test-suite baskell-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
