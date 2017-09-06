@@ -35,9 +35,9 @@ makeGenDoubleValue :: Double -> Gen Expression
 makeGenDoubleValue x = return $ DoubleValue x
 
 data OpConfig = OpConfig
-    { getTerms :: Total -> Gen (Expression, Expression)
-    , getCons  :: Expression -> Expression -> Expression
-    }
+              { getTerms :: Total -> Gen (Expression, Expression)
+              , getCons  :: Expression -> Expression -> Expression
+              }
 
 getTermsAddInteger :: Integer -> Gen (Expression, Expression)
 getTermsAddInteger i = do
@@ -63,10 +63,10 @@ getTermsAdd :: Total -> Gen (Expression, Expression)
 getTermsAdd (IntegerTotal i) = getTermsAddInteger i
 getTermsAdd (DoubleTotal  d) = getTermsAddDouble  d
 
-addConfig = OpConfig {
-    getTerms = getTermsAdd,
-    getCons = Add
-}
+addConfig = OpConfig
+          { getTerms = getTermsAdd
+          , getCons = Add
+          }
 
 --------------------------------------------------------------------------------
 
@@ -91,10 +91,10 @@ getTermsSubtract :: Total -> Gen (Expression, Expression)
 getTermsSubtract (IntegerTotal i) = getTermsSubtractInteger i
 getTermsSubtract (DoubleTotal  d) = getTermsSubtractDouble  d
 
-subtractConfig = OpConfig {
-    getTerms = getTermsSubtract,
-    getCons = Subtract
-}
+subtractConfig = OpConfig
+               { getTerms = getTermsSubtract
+               , getCons = Subtract
+               }
 
 --------------------------------------------------------------------------------
 
@@ -150,10 +150,10 @@ getTermsMultiply :: Total -> Gen (Expression, Expression)
 getTermsMultiply (IntegerTotal i) = getTermsMultiplyInteger i
 getTermsMultiply (DoubleTotal d)  = getTermsMultiplyDouble d
 
-multiplyConfig = OpConfig {
-    getTerms = getTermsMultiply,
-    getCons = Multiply
-}
+multiplyConfig = OpConfig
+               { getTerms = getTermsMultiply
+               , getCons = Multiply
+               }
 
 --------------------------------------------------------------------------------
 
@@ -175,10 +175,10 @@ getTermsDivide :: Total -> Gen (Expression, Expression)
 getTermsDivide (IntegerTotal i) = getTermsDivideInteger i
 getTermsDivide (DoubleTotal d)  = getTermsDivideDouble d
 
-divideConfig = OpConfig {
-    getTerms = getTermsDivide,
-    getCons = Divide
-}
+divideConfig = OpConfig
+             { getTerms = getTermsDivide
+             , getCons = Divide
+             }
 
 type Depth = Integer
 
