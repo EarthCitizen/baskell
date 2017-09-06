@@ -1,4 +1,7 @@
-source rainbow.sh
+readonly SCRIPTROOT=$( cd $( dirname $0 ); pwd )
+readonly PROJROOT=$( cd $SCRIPTROOT/..; pwd )
+
+source $SCRIPTROOT/rainbow.sh
 
 # Without the trap, the terminal gets messed up
 # and displays escape codes for the arrow keys.
