@@ -1,20 +1,30 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE PatternGuards #-}
 
+import Data.Tuple (swap)
 import System.Environment (getArgs)
 import Test.QuickCheck
+import Control.Applicative ((<|>))
 import Control.Monad (liftM)
 import AST
-import Text.Read (readMaybe)
+import Text.Read (readEither, readMaybe)
 
 import Debug.Trace
 
-data TotalInput = IntegerTotal Integer | DoubleTotal Double deriving (Eq, Show)
+data Params = Params { getDepth :: Integer
+                     , getTotal :: Total
+                     } deriving (Eq, Show)
+
+data Total = IntegerTotal Integer
+           | DoubleTotal Double
+           deriving (Eq, Show)
 
 -- Strict, otherwise the list will be rebuilt each reference
 tenkPrimes :: [Integer]
-!tenkPrimes = [1, 2, 3, 5, 7, 9, 11, 13] ++ [ x | x <- [14..10000], (not.any ((0 ==).(rem x))) [2..(x-1)]]
-
+!tenkPrimes = initialPrimes ++ [ x | x <- [14..10000], isPrime x]
+    where initialPrimes = [1, 2, 3, 5, 7, 9, 11, 13]
+          isPrime x = (not . any ((0 ==) . (rem x))) [2..(x-1)]
 
 newtype MathExpr = MathExpr Expression
 
@@ -24,29 +34,71 @@ makeGenIntegerValue x = return $ IntegerValue x
 makeGenDoubleValue :: Double -> Gen Expression
 makeGenDoubleValue x = return $ DoubleValue x
 
-data OpConfig = OpConfig {
-    getTerms :: Integer -> Gen (Integer, Integer),
-    getCons  :: Expression -> Expression -> Expression
-}
+data OpConfig = OpConfig
+    { getTerms :: Total -> Gen (Expression, Expression)
+    , getCons  :: Expression -> Expression -> Expression
+    }
+
+getTermsAddInteger :: Integer -> Gen (Expression, Expression)
+getTermsAddInteger i = do
+    i2 <- arbitrary
+    let opt1 = (IntegerValue (i - i2), IntegerValue (i2))
+        opt2 = swap opt1
+    oneof [ return opt1, return opt2 ]
+
+getTermsAddDouble :: Double -> Gen (Expression, Expression)
+getTermsAddDouble d = oneof [doubleDouble, doubleInteger]
+    where doubleDouble = do
+              d2 <- arbitrary
+              let opt1 = (DoubleValue (d - d2), DoubleValue d2)
+                  opt2 = swap opt1
+              oneof [ return opt1, return opt2 ]
+          doubleInteger = do
+              i <- arbitrary :: Gen Integer
+              let opt1 = (DoubleValue (d - (fromIntegral i)), IntegerValue i)
+                  opt2 = swap opt1
+              oneof [ return opt1, return opt2 ]
+
+getTermsAdd :: Total -> Gen (Expression, Expression)
+getTermsAdd (IntegerTotal i) = getTermsAddInteger i
+getTermsAdd (DoubleTotal  d) = getTermsAddDouble  d
 
 addConfig = OpConfig {
-    getTerms =
-        \case t | t == 0    -> return (0, 0)
-                | otherwise -> do
-                    t2 <- arbitrary
-                    return $ (t - t2, t2),
+    getTerms = getTermsAdd,
     getCons = Add
 }
 
+--------------------------------------------------------------------------------
+
+getTermsSubtractInteger :: Integer -> Gen (Expression, Expression)
+getTermsSubtractInteger i = do
+    i2 <- arbitrary
+    return (IntegerValue (i + i2), IntegerValue i2)
+
+getTermsSubtractDouble :: Double -> Gen (Expression, Expression)
+getTermsSubtractDouble d = oneof [doubleDouble, doubleInteger1, doubleInteger2]
+    where doubleDouble = do
+              d2 <- arbitrary
+              return (DoubleValue (d + d2), DoubleValue d2)
+          doubleInteger1 = do
+              i <- arbitrary :: Gen Integer
+              return (DoubleValue (d + (fromIntegral i)), IntegerValue i)
+          doubleInteger2 = do
+              i <- arbitrary
+              return (IntegerValue i, DoubleValue ((fromIntegral i) - d))
+
+getTermsSubtract :: Total -> Gen (Expression, Expression)
+getTermsSubtract (IntegerTotal i) = getTermsSubtractInteger i
+getTermsSubtract (DoubleTotal  d) = getTermsSubtractDouble  d
+
 subtractConfig = OpConfig {
-    getTerms =
-        \case t | t == 0    -> return (0, 0)
-                | otherwise -> do
-                    t2 <- arbitrary
-                    return $ (t + t2, t2),
+    getTerms = getTermsSubtract,
     getCons = Subtract
 }
 
+--------------------------------------------------------------------------------
+
+-- This will find at least a factor of 1
 factorize :: Integer -> [Integer]
 factorize term = let s = signum term
                      a = abs term
@@ -54,37 +106,89 @@ factorize term = let s = signum term
                      c = if a < 100000 then [1..a] else k
                   in [ s * x | x <- c, rem a x == 0 ]
 
+getTermsMultiplyInteger :: Integer -> Gen (Expression, Expression)
+getTermsMultiplyInteger 0 = do
+    i2 <- arbitrary
+    let opt1 = (IntegerValue 0, IntegerValue i2)
+        opt2 = swap opt1
+    oneof [return opt1, return opt2]
+getTermsMultiplyInteger i = do
+    factor <- elements $ factorize i
+    let opt1 = (IntegerValue (div i factor), IntegerValue factor)
+        opt2 = swap opt1
+    oneof [ return opt1, return opt2 ]
+
+getTermsMultiplyDouble :: Double -> Gen (Expression, Expression)
+getTermsMultiplyDouble 0 = do
+    d2 <- arbitrary
+    i2 <- arbitrary
+    let opt1 = (DoubleValue 0, DoubleValue d2)
+        opt2 = swap opt1
+        opt3 = (DoubleValue 0, IntegerValue i2)
+        opt4 = swap opt2
+        opt5 = (IntegerValue 0, DoubleValue d2)
+        opt6 = swap opt5
+    oneof $ return <$> [opt1, opt2, opt3, opt4, opt5, opt6]
+getTermsMultiplyDouble d = oneof [doubleDouble, doubleInteger]
+    where doubleDouble = do
+              d2 <- arbitrary
+              let opt1 = (DoubleValue (d / d2), DoubleValue d2)
+                  opt2 = swap opt1
+              oneof [ return opt1, return opt2 ]
+          doubleInteger = do
+              i <- arbitrary :: Gen Integer
+              let opt1 = (DoubleValue (d / (fromIntegral i)), IntegerValue i)
+                  opt2 = swap opt1
+              oneof [ return opt1, return opt2 ]
+
+getTermsMultiply :: Total -> Gen (Expression, Expression)
+getTermsMultiply (IntegerTotal i) = getTermsMultiplyInteger i
+getTermsMultiply (DoubleTotal d)  = getTermsMultiplyDouble d
+
 multiplyConfig = OpConfig {
-    getTerms =
-        \case t | t == 0    -> return (0, 0)
-                | otherwise -> do
-                    divisor <- elements $ factorize t
-                    return $ (div t divisor, divisor),
+    getTerms = getTermsMultiply,
     getCons = Multiply
 }
 
+--------------------------------------------------------------------------------
+
+getTermsDivideInteger :: Integer -> Gen (Expression, Expression)
+getTermsDivideInteger i = do
+    divisor <- suchThat arbitrary (/=0)
+    return (IntegerValue (i * divisor), IntegerValue divisor)
+
+getTermsDivideDouble :: Double -> Gen (Expression, Expression)
+getTermsDivideDouble d = oneof [ doubleDouble, doubleInteger ]
+    where doubleDouble = do
+              divisorDbl <- suchThat arbitrary (/=0)
+              return (DoubleValue (d * divisorDbl), DoubleValue divisorDbl)
+          doubleInteger = do
+              divisorInt <- suchThat arbitrary (/=0) :: Gen Integer
+              return (DoubleValue (d * (fromIntegral divisorInt)), IntegerValue divisorInt)
+
+getTermsDivide :: Total -> Gen (Expression, Expression)
+getTermsDivide (IntegerTotal i) = getTermsDivideInteger i
+getTermsDivide (DoubleTotal d)  = getTermsDivideDouble d
+
 divideConfig = OpConfig {
-    getTerms =
-        \case t | t == 0    -> return (0, 1)
-                | otherwise -> do
-                    divisor <- suchThat arbitrary (/=0)
-                    return $ (t * divisor, divisor),
+    getTerms = getTermsDivide,
     getCons = Divide
 }
 
-type Total = Integer
 type Depth = Integer
 
 makeOpGen :: OpConfig -> Depth -> Total -> Gen Expression
-makeOpGen tc _ 0 = do
-    (t1, t2) <- getTerms tc 0
-    return $ getCons tc (IntegerValue t1) (IntegerValue t2)
-makeOpGen tc depth total
-    | depth <= 0 = makeGenIntegerValue total
-    | otherwise  = do
+makeOpGen tc depth tot
+    | (DoubleTotal  d) <- tot, depth <= 0 = makeGenDoubleValue  d
+    | (IntegerTotal i) <- tot, depth <= 0 = makeGenIntegerValue i
+    | (DoubleTotal  0) <- tot = makeGenDoubleValue  0
+    | (IntegerTotal 0) <- tot = makeGenIntegerValue 0
+    | otherwise = do
         let nextDepth = depth - 1
-        (t1, t2) <- getTerms tc total
-        getCons tc <$> (genMathExpr nextDepth t1) <*> (genMathExpr nextDepth t2)
+        (t1, t2) <- getTerms tc tot
+        getCons tc <$> (genMathExpr nextDepth $ termToTotal t1) <*> (genMathExpr nextDepth $ termToTotal t2)
+    where termToTotal (DoubleValue  d) = DoubleTotal  d
+          termToTotal (IntegerValue i) = IntegerTotal i
 
 makeAddGen :: Depth -> Total -> Gen Expression
 makeAddGen = makeOpGen addConfig
@@ -98,42 +202,61 @@ makeMultiplyGen = makeOpGen multiplyConfig
 makeDivideGen :: Depth -> Total -> Gen Expression
 makeDivideGen = makeOpGen divideConfig
 
+makeNumberValueGen :: Total -> Gen Expression
+makeNumberValueGen (IntegerTotal i) = return $ IntegerValue i
+makeNumberValueGen (DoubleTotal  d) = return $ DoubleValue  d
+
 genMathExpr :: Depth -> Total -> Gen Expression
-genMathExpr depth total = oneof [
-        makeGenIntegerValue total,
-        makeAddGen depth total,
-        makeSubtractGen depth total,
-        makeMultiplyGen depth total,
-        makeDivideGen depth total
-    ]
+genMathExpr depth total = oneof [ makeNumberValueGen total
+                                , makeAddGen      depth total
+                                , makeSubtractGen depth total
+                                , makeMultiplyGen depth total
+                                , makeDivideGen   depth total
+                                ]
 
 exprToString :: Expression -> String
-exprToString (IntegerValue a) = integerValueToString a
+exprToString (DoubleValue d)  = doubleValueToString d
+exprToString (IntegerValue i) = integerValueToString i
 exprToString (Subtract a b)   = parensWithOp a b "-"
 exprToString (Add a b)        = parensWithOp a b "+"
 exprToString (Multiply a b)   = parensWithOp a b "*"
 exprToString (Divide a b)     = parensWithOp a b "/"
 
-integerValueToString value
+doubleValueToString = numValueToString :: Double -> String
+integerValueToString = numValueToString :: Integer -> String
+
+numValueToString :: (Num a, Ord a, Show a) => a -> String
+numValueToString value
     | value < 0 = "(" ++ show value ++ ")"
     | otherwise = show value
 
 parensWithOp a b op = "(" ++ exprToString a ++ op ++ exprToString b ++ ")"
 
-readTotal :: String -> Maybe TotalInput
+readDepth :: String -> Either String Integer
+readDepth a = readDepth' >>= validateDepth
+    where readDepth' = (readEither a :: Either String Integer) <|> Left ("Not a valid depth: " ++ a)
+          validateDepth d
+              | d >= 0    = Right d
+              | otherwise = Left "Depth must be >= 0"
+
+readTotal :: String -> Either String Total
 readTotal a =
-    case (readMaybe a :: Maybe Integer) of
-        Nothing -> case (readMaybe a :: Maybe Double) of
-            Nothing -> Nothing
-            v -> fmap DoubleTotal v
-        d -> fmap IntegerTotal d
+    (fmap IntegerTotal (readEither a :: Either String Integer)) <|>
+    (fmap DoubleTotal  (readEither a :: Either String Double))  <|>
+    Left ("Not a valid total: " ++ a)
+
+showValue (DoubleValue  d) = show d
+showValue (IntegerValue i) = show i
 
 main = do
     args <- getArgs
-    let depth = read (args !! 0) :: Integer
-        total = readTotal (args !! 1)
-        -- total = read (args !! 1) :: Integer
-    -- expr <- generate $ genMathExpr depth total
-    -- putStrLn $ exprToString expr
-    print depth
-    print total
+    let depthArg = (args !! 0)
+        totalArg = (args !! 1)
+        paramsEither = Params <$> readDepth depthArg <*> readTotal totalArg
+    case paramsEither of
+        Left err     -> putStrLn err
+        Right params -> do
+            let depth = getDepth params
+                total = getTotal params
+            expr <- generate $ genMathExpr depth total
+            putStrLn $ exprToString expr
