@@ -130,14 +130,19 @@ getTermsMultiplyDouble 0 = do
         opt6 = swap opt5
     oneof $ return <$> [opt1, opt2, opt3, opt4, opt5, opt6]
 getTermsMultiplyDouble d = oneof [doubleDouble, doubleInteger]
-    where doubleDouble = do
-              d2 <- arbitrary
-              let opt1 = (DoubleValue (d / d2), DoubleValue d2)
+    where notIsInfinite = not . isInfinite
+          doubleDouble = do
+              let termFn   = (d/)
+                  termFltr = notIsInfinite . termFn
+              d2 <- suchThat arbitrary termFltr
+              let opt1 = (DoubleValue (termFn d2), DoubleValue d2)
                   opt2 = swap opt1
               oneof [ return opt1, return opt2 ]
           doubleInteger = do
-              i <- arbitrary :: Gen Integer
-              let opt1 = (DoubleValue (d / (fromIntegral i)), IntegerValue i)
+              let termFn   = (\x -> (d / (fromIntegral x)))
+                  termFltr = notIsInfinite . termFn
+              i <- suchThat arbitrary termFltr :: Gen Integer
+              let opt1 = (DoubleValue (termFn i), IntegerValue i)
                   opt2 = swap opt1
               oneof [ return opt1, return opt2 ]
 
