@@ -2,9 +2,11 @@ module EvalSpec (spec) where
 
 import Test.QuickCheck
 import Test.Hspec
+import Test.Hspec.Core.QuickCheck (modifyMaxSize)
 import AST
 import Eval (eval)
 import Error
+import Gen (TestNumExpr (..), totalMatchesResult)
 import Debug.Trace
 
 spec :: Spec
@@ -39,3 +41,6 @@ spec = do
         context "when passed Add with one IntegerValue and one DoubleValue" $ do
             it "returns DoubleValue containing the integer and double added" $ property $ property $
                 \x y -> eval (Add (IntegerValue x) (DoubleValue y)) == DoubleValue (realToFrac x + y)
+        context "when passed a valid numeric expression" $ do
+            modifyMaxSize (const 2000000) $ it "returns expected total" $ property $
+                \(TestNumExpr total expr) -> totalMatchesResult total $ eval expr

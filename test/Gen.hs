@@ -2,6 +2,8 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE PatternGuards #-}
 
+module Gen where
+
 import Data.Tuple (swap)
 import System.Environment (getArgs)
 import Test.QuickCheck
@@ -9,8 +11,7 @@ import Control.Applicative ((<|>))
 import Control.Monad (liftM)
 import AST
 import Text.Read (readEither, readMaybe)
-
-import Debug.Trace
+import qualified Data.AEq as D
 
 data Params = Params { getDepth :: Integer
                      , getTotal :: Total
@@ -212,12 +213,34 @@ makeNumberValueGen (IntegerTotal i) = return $ IntegerValue i
 makeNumberValueGen (DoubleTotal  d) = return $ DoubleValue  d
 
 genMathExpr :: Depth -> Total -> Gen Expression
-genMathExpr depth total = oneof [ makeNumberValueGen total
-                                , makeAddGen      depth total
+genMathExpr depth total = oneof [ makeAddGen      depth total
                                 , makeSubtractGen depth total
                                 , makeMultiplyGen depth total
                                 , makeDivideGen   depth total
                                 ]
+
+instance Arbitrary Total where
+    arbitrary = oneof [IntegerTotal <$> arbitrary, DoubleTotal <$> arbitrary]
+
+data TestNumExpr = TestNumExpr Total Expression deriving (Show)
+
+totalMatchesResult :: Total -> Expression -> Bool
+totalMatchesResult (DoubleTotal total) (DoubleValue testVal) =
+    total D.~== testVal
+    -- let tolerance = 0.001 :: Double
+    --     minVal = total - tolerance
+    --     maxVal = total + tolerance
+    --  in (testVal >= minVal && testVal <= maxVal)
+totalMatchesResult (IntegerTotal total) (IntegerValue testVal) =
+    total == testVal
+totalMatchesResult _ _ = False
+
+instance Arbitrary TestNumExpr where
+    arbitrary = do
+        depth <- suchThat arbitrary (\a -> a >= 0 && a <= 3) :: Gen Integer
+        total <- arbitrary
+        expr  <- genMathExpr depth total
+        return $ TestNumExpr total expr
 
 exprToString :: Expression -> String
 exprToString (DoubleValue d)  = doubleValueToString d
@@ -263,5 +286,6 @@ main = do
         Right params -> do
             let depth = getDepth params
                 total = getTotal params
-            expr <- generate $ genMathExpr depth total
+            rndDepth <- generate $ suchThat arbitrary (\a -> a >= 0 && a <= depth)
+            expr <- generate $ genMathExpr rndDepth total
             putStrLn $ exprToString expr
