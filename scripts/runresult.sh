@@ -5,7 +5,7 @@ readonly PROJROOT=$( cd $SCRIPTROOT/..; pwd )
 
 cd $PROJROOT
 
-expr=$(stack runghc -- test/Gen.hs $1 $2 | sed  's/e+*/\*10\^/g')
+expr=$(bash $PROJROOT/scripts/rungen.sh $1 $2)
 
 echo '==========================='
 echo Value: $2

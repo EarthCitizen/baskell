@@ -5,4 +5,4 @@ readonly PROJROOT=$( cd $SCRIPTROOT/..; pwd )
 
 cd $PROJROOT
 
-stack exec gen-expr -- $1 $2 | sed  's/e+*/\*10\^/g'
+stack runghc -- $PROJROOT/test/Gen.hs $1 $2 | sed  's/e+*/\*10\^/g'

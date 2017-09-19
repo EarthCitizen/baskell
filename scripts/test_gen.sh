@@ -47,7 +47,7 @@ do
             compare=$(bc -l <<< "($result - $total) < 0.0001")
             compare_exit=$?
             check_failure $compare_exit "$compare"
-            #echo "$result == $total"
+            # echo "$result == $total"
             if [ "$compare" -ne "1" ]
             then
                 expected=$(echored ": expected $total but got $result")
