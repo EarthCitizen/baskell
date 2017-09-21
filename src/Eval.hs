@@ -8,7 +8,7 @@ expressionToString :: Expression -> String
 expressionToString (BooleanValue True) = "true"
 expressionToString (BooleanValue False) = "false"
 expressionToString (IntegerValue v) = show v
-expressionToString (DoubleValue v) = show v
+expressionToString (FloatingValue v) = show v
 expressionToString (StringValue v) = v
 expressionToString (Invalid (DivideByZeroError v)) = v
 expressionToString (Invalid (TypeMismatchError v)) = v
@@ -16,7 +16,7 @@ expressionToString e = expressionToString $ eval e
 
 lookupVarValue :: String -> Expression
 lookupVarValue "x" = StringValue "Hello World!"
-lookupVarValue _   = DoubleValue 9.0
+lookupVarValue _   = FloatingValue 9.0
 
 type DoubleBinOp = BigDecimal -> BigDecimal -> BigDecimal
 type IntegerBinOp = Integer -> Integer -> Integer
@@ -38,30 +38,30 @@ evalM_ e = let ev = eval e
                _ -> Right ev
 
 eval :: Expression -> Expression
-eval v@(BooleanValue _) = v
-eval v@(DoubleValue _)  = v
-eval v@(IntegerValue _) = v
-eval v@(StringValue _)  = v
-eval (VarValue n)       = eval $ lookupVarValue n
-eval v@(Invalid _)      = v
-eval v@(Add _ _) = evalAdd v
-eval v@(Subtract _ _) = evalSubtract v
-eval v@(Multiply _ _) = evalMultiply v
-eval v@(Divide _ _) = evalDivide v
+eval v@(BooleanValue _)  = v
+eval v@(FloatingValue _) = v
+eval v@(IntegerValue _)  = v
+eval v@(StringValue _)   = v
+eval (VarValue n)        = eval $ lookupVarValue n
+eval v@(Invalid _)       = v
+eval v@(Add _ _)         = evalAdd v
+eval v@(Subtract _ _)    = evalSubtract v
+eval v@(Multiply _ _)    = evalMultiply v
+eval v@(Divide _ _)      = evalDivide v
 
 
 evalNumbersWith :: Expression -> Expression -> DoubleBinOp -> IntegerBinOp -> Expression
 evalNumbersWith a b fndOp fniOp = evalNumbers a b
     where evalNumbers i@(Invalid _) _ = i
           evalNumbers _ i@(Invalid _) = i
-          evalNumbers (StringValue _) _ = Invalid $ TypeMismatchError errMsgNoStringInNum
-          evalNumbers _ (StringValue _) = Invalid $ TypeMismatchError errMsgNoStringInNum
+          evalNumbers (StringValue _) _  = Invalid $ TypeMismatchError errMsgNoStringInNum
+          evalNumbers _ (StringValue _)  = Invalid $ TypeMismatchError errMsgNoStringInNum
           evalNumbers (BooleanValue _) _ = Invalid $ TypeMismatchError errMsgNoBooleanInNum
           evalNumbers _ (BooleanValue _) = Invalid $ TypeMismatchError errMsgNoBooleanInNum
-          evalNumbers (DoubleValue x)  (DoubleValue y)   = DoubleValue (fndOp x y)
-          evalNumbers (DoubleValue x)  (IntegerValue y)  = DoubleValue (fndOp x (fromInteger y))
-          evalNumbers (IntegerValue x)  (DoubleValue y)  = DoubleValue (fndOp (fromInteger x) y)
-          evalNumbers (IntegerValue x)  (IntegerValue y) = IntegerValue (fniOp x y)
+          evalNumbers (FloatingValue x) (FloatingValue y) = FloatingValue (fndOp x y)
+          evalNumbers (FloatingValue x) (IntegerValue y)  = FloatingValue (fndOp x (fromInteger y))
+          evalNumbers (IntegerValue x)  (FloatingValue y) = FloatingValue (fndOp (fromInteger x) y)
+          evalNumbers (IntegerValue x)  (IntegerValue y)  = IntegerValue (fniOp x y)
           evalNumbers x y = evalNumbers (eval x) (eval y)
 
 evalAdd :: Expression -> Expression
@@ -77,6 +77,6 @@ evalDivide :: Expression -> Expression
 evalDivide (Divide a b) = evalDivideCheckZero a b
 
 evalDivideCheckZero :: Expression -> Expression -> Expression
-evalDivideCheckZero (_) (IntegerValue 0) = Invalid $ DivideByZeroError errMsgDivideByZero
-evalDivideCheckZero (_) (DoubleValue 0.0) = Invalid $ DivideByZeroError errMsgDivideByZero
+evalDivideCheckZero (_) (IntegerValue 0)    = Invalid $ DivideByZeroError errMsgDivideByZero
+evalDivideCheckZero (_) (FloatingValue 0.0) = Invalid $ DivideByZeroError errMsgDivideByZero
 evalDivideCheckZero a b = evalNumbersWith a b doubleDiv integerDiv

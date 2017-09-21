@@ -9,16 +9,16 @@ import Error
 
 type BigDecimal = BigFloat Prec50
 
-data Expression = Add          Expression Expression |
-                  Subtract     Expression Expression |
-                  Multiply     Expression Expression |
-                  Divide       Expression Expression |
-                  BooleanValue Bool       |
-                  DoubleValue  BigDecimal |
-                  IntegerValue Integer    |
-                  StringValue  String     |
-                  VarValue     String     |
-                  Invalid      LangageError deriving (Eq, Ord, Show)
+data Expression = Add           Expression Expression |
+                  Subtract      Expression Expression |
+                  Multiply      Expression Expression |
+                  Divide        Expression Expression |
+                  BooleanValue  Bool       |
+                  FloatingValue BigDecimal |
+                  IntegerValue  Integer    |
+                  StringValue   String     |
+                  VarValue      String     |
+                  Invalid       LangageError deriving (Eq, Ord, Show)
 
 -- data Else = ElseIf Expression Block Else |
 --             Else Block |

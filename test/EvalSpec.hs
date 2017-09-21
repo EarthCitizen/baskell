@@ -21,9 +21,9 @@ spec = do
         context "when passed IntegerValue with any contained integer" $ do
             it "returns IntegerValue with the same contained integer" $ property $
                 \x -> (eval $ IntegerValue x) == IntegerValue x
-        context "when passed DoubleValue with any contained double" $ do
-            it "returns DoubleValue with the same contained double" $ property $
-                \x -> (eval $ DoubleValue x) == DoubleValue x
+        context "when passed FloatingValue with any contained double" $ do
+            it "returns FloatingValue with the same contained double" $ property $
+                \x -> (eval $ FloatingValue x) == FloatingValue x
         context "when passed StringValue with any contained string" $ do
             it "returns StringValue with the same contained string" $ property $
                 \x -> (eval $ StringValue x) == StringValue x
@@ -35,12 +35,12 @@ spec = do
         context "when passed Add with two of IntegerValue" $ do
             it "returns IntegerValue containing the other integers added" $ property $ property $
                 \x y -> eval (Add (IntegerValue x) (IntegerValue y)) == IntegerValue (x + y)
-        context "when passed Add with two of DoubleValue" $ do
-            it "returns DoubleValue containing the other integers added" $ property $ property $
-                \x y -> eval (Add (DoubleValue x) (DoubleValue y)) == DoubleValue (x + y)
-        context "when passed Add with one IntegerValue and one DoubleValue" $ do
-            it "returns DoubleValue containing the integer and double added" $ property $ property $
-                \x y -> eval (Add (IntegerValue x) (DoubleValue y)) == DoubleValue (realToFrac x + y)
+        context "when passed Add with two of FloatingValue" $ do
+            it "returns FloatingValue containing the other integers added" $ property $ property $
+                \x y -> eval (Add (FloatingValue x) (FloatingValue y)) == FloatingValue (x + y)
+        context "when passed Add with one IntegerValue and one FloatingValue" $ do
+            it "returns FloatingValue containing the integer and double added" $ property $ property $
+                \x y -> eval (Add (IntegerValue x) (FloatingValue y)) == FloatingValue (realToFrac x + y)
         context "when passed a valid numeric expression" $ do
             modifyMaxSize (const 300000) $ it "returns expected total" $ property $
                 \(TestNumExpr total expr) -> totalMatchesResult total $ eval expr
