@@ -11,7 +11,7 @@ copyright:           2016 Author Here
 category:            Web
 build-type:          Simple
 -- extra-source-files:
-cabal-version:       >=1.10
+cabal-version:       >=1.24
 
 library
   hs-source-dirs:      src
@@ -20,6 +20,7 @@ library
                      , containers
                      , either
                      , parsec
+                     , numbers
                      , transformers
   default-language:    Haskell2010
 
@@ -32,6 +33,7 @@ executable baskell
                      , containers
                      , either
                      , parsec
+                     , numbers
                      , transformers
   default-language:    Haskell2010
   other-modules:       Parse, Compile, AST, Error, Eval, Exec
@@ -40,6 +42,7 @@ test-suite baskell-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
   main-is:             Spec.hs
+  other-modules:       EvalSpec, ExecSpec, Gen
   build-depends:       base
                      , baskell
                      , hspec

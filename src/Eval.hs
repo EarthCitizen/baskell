@@ -1,6 +1,7 @@
 module Eval where
 
 import AST
+import Debug.Trace
 import Error
 
 expressionToString :: Expression -> String
@@ -17,7 +18,7 @@ lookupVarValue :: String -> Expression
 lookupVarValue "x" = StringValue "Hello World!"
 lookupVarValue _   = DoubleValue 9.0
 
-type DoubleBinOp = Double -> Double -> Double
+type DoubleBinOp = BigDecimal -> BigDecimal -> BigDecimal
 type IntegerBinOp = Integer -> Integer -> Integer
 
 doubleAdd = (+) :: DoubleBinOp
@@ -58,8 +59,8 @@ evalNumbersWith a b fndOp fniOp = evalNumbers a b
           evalNumbers (BooleanValue _) _ = Invalid $ TypeMismatchError errMsgNoBooleanInNum
           evalNumbers _ (BooleanValue _) = Invalid $ TypeMismatchError errMsgNoBooleanInNum
           evalNumbers (DoubleValue x)  (DoubleValue y)   = DoubleValue (fndOp x y)
-          evalNumbers (DoubleValue x)  (IntegerValue y)  = DoubleValue (fndOp x (realToFrac y))
-          evalNumbers (IntegerValue x)  (DoubleValue y)  = DoubleValue (fndOp (realToFrac x) y)
+          evalNumbers (DoubleValue x)  (IntegerValue y)  = DoubleValue (fndOp x (fromInteger y))
+          evalNumbers (IntegerValue x)  (DoubleValue y)  = DoubleValue (fndOp (fromInteger x) y)
           evalNumbers (IntegerValue x)  (IntegerValue y) = IntegerValue (fniOp x y)
           evalNumbers x y = evalNumbers (eval x) (eval y)
 

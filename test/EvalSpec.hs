@@ -42,5 +42,5 @@ spec = do
             it "returns DoubleValue containing the integer and double added" $ property $ property $
                 \x y -> eval (Add (IntegerValue x) (DoubleValue y)) == DoubleValue (realToFrac x + y)
         context "when passed a valid numeric expression" $ do
-            modifyMaxSize (const 2000000) $ it "returns expected total" $ property $
+            modifyMaxSize (const 300000) $ it "returns expected total" $ property $
                 \(TestNumExpr total expr) -> totalMatchesResult total $ eval expr

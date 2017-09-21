@@ -1,6 +1,7 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Gen where
 
@@ -12,14 +13,20 @@ import Control.Monad (liftM)
 import AST
 import Text.Read (readEither, readMaybe)
 import qualified Data.AEq as D
+import Debug.Trace
 
 data Params = Params { getDepth :: Integer
                      , getTotal :: Total
                      } deriving (Eq, Show)
 
 data Total = IntegerTotal Integer
-           | DoubleTotal Double
+           | DoubleTotal BigDecimal
            deriving (Eq, Show)
+
+instance Arbitrary BigDecimal where
+    arbitrary = do
+        d <- arbitrary :: Gen Double
+        return $ realToFrac d
 
 -- Strict, otherwise the list will be rebuilt each reference
 tenkPrimes :: [Integer]
@@ -29,10 +36,15 @@ tenkPrimes :: [Integer]
 
 newtype MathExpr = MathExpr Expression
 
+genBigDecimal :: Gen BigDecimal
+genBigDecimal = do
+    s <- oneof $ return <$> [0, 3, 6, 12, 24, 1200, 48000, 960000, 1920000000, 3840000000]
+    resize s arbitrary
+
 makeGenIntegerValue :: Integer -> Gen Expression
 makeGenIntegerValue x = return $ IntegerValue x
 
-makeGenDoubleValue :: Double -> Gen Expression
+makeGenDoubleValue :: BigDecimal -> Gen Expression
 makeGenDoubleValue x = return $ DoubleValue x
 
 data OpConfig = OpConfig
@@ -47,10 +59,10 @@ getTermsAddInteger i = do
         opt2 = swap opt1
     oneof [ return opt1, return opt2 ]
 
-getTermsAddDouble :: Double -> Gen (Expression, Expression)
-getTermsAddDouble d = oneof [doubleDouble, doubleInteger]
+getTermsAddDouble :: BigDecimal -> Gen (Expression, Expression)
+getTermsAddDouble d = frequency [(2, doubleDouble), (1, doubleInteger)]
     where doubleDouble = do
-              d2 <- arbitrary
+              d2 <- genBigDecimal
               let opt1 = (DoubleValue (d - d2), DoubleValue d2)
                   opt2 = swap opt1
               oneof [ return opt1, return opt2 ]
@@ -76,10 +88,10 @@ getTermsSubtractInteger i = do
     i2 <- arbitrary
     return (IntegerValue (i + i2), IntegerValue i2)
 
-getTermsSubtractDouble :: Double -> Gen (Expression, Expression)
-getTermsSubtractDouble d = oneof [doubleDouble, doubleInteger1, doubleInteger2]
+getTermsSubtractDouble :: BigDecimal -> Gen (Expression, Expression)
+getTermsSubtractDouble d = frequency [(4, doubleDouble), (1, doubleInteger1), (1, doubleInteger2)]
     where doubleDouble = do
-              d2 <- arbitrary
+              d2 <- genBigDecimal
               return (DoubleValue (d + d2), DoubleValue d2)
           doubleInteger1 = do
               i <- arbitrary :: Gen Integer
@@ -87,6 +99,10 @@ getTermsSubtractDouble d = oneof [doubleDouble, doubleInteger1, doubleInteger2]
           doubleInteger2 = do
               i <- arbitrary
               return (IntegerValue i, DoubleValue ((fromIntegral i) - d))
+        --   doubleAdd d1 d2 = let mult = (10 ** 20) :: BigDecimal
+        --                         i1 = round (d1 * mult) :: Integer
+        --                         i2 = round (d2 * mult) :: Integer
+        --                      in (fromIntegral (i1 + i2) :: BigDecimal) / mult
 
 getTermsSubtract :: Total -> Gen (Expression, Expression)
 getTermsSubtract (IntegerTotal i) = getTermsSubtractInteger i
@@ -119,9 +135,9 @@ getTermsMultiplyInteger i = do
         opt2 = swap opt1
     oneof [ return opt1, return opt2 ]
 
-getTermsMultiplyDouble :: Double -> Gen (Expression, Expression)
+getTermsMultiplyDouble :: BigDecimal -> Gen (Expression, Expression)
 getTermsMultiplyDouble 0 = do
-    d2 <- arbitrary
+    d2 <- genBigDecimal
     i2 <- arbitrary
     let opt1 = (DoubleValue 0, DoubleValue d2)
         opt2 = swap opt1
@@ -130,18 +146,18 @@ getTermsMultiplyDouble 0 = do
         opt5 = (IntegerValue 0, DoubleValue d2)
         opt6 = swap opt5
     oneof $ return <$> [opt1, opt2, opt3, opt4, opt5, opt6]
-getTermsMultiplyDouble d = oneof [doubleDouble, doubleInteger]
-    where notIsInfinite = not . isInfinite
+getTermsMultiplyDouble d = frequency [(2, doubleDouble), (1, doubleInteger)]
+    where isBadNumber = \x -> isInfinite x || isNaN x || isDenormalized x || isNegativeZero x || x == 0
           doubleDouble = do
               let termFn   = (d/)
-                  termFltr = notIsInfinite . termFn
-              d2 <- suchThat arbitrary termFltr
+                  termFltr = not . isBadNumber -- . termFn
+              d2 <- suchThat genBigDecimal termFltr
               let opt1 = (DoubleValue (termFn d2), DoubleValue d2)
                   opt2 = swap opt1
               oneof [ return opt1, return opt2 ]
           doubleInteger = do
-              let termFn   = (\x -> (d / (fromIntegral x)))
-                  termFltr = notIsInfinite . termFn
+              let termFn   = (d/) . fromIntegral
+                  termFltr = (/=0) -- not . isBadNumber -- . termFn
               i <- suchThat arbitrary termFltr :: Gen Integer
               let opt1 = (DoubleValue (termFn i), IntegerValue i)
                   opt2 = swap opt1
@@ -163,10 +179,10 @@ getTermsDivideInteger i = do
     divisor <- suchThat arbitrary (/=0)
     return (IntegerValue (i * divisor), IntegerValue divisor)
 
-getTermsDivideDouble :: Double -> Gen (Expression, Expression)
-getTermsDivideDouble d = oneof [ doubleDouble, doubleInteger ]
+getTermsDivideDouble :: BigDecimal -> Gen (Expression, Expression)
+getTermsDivideDouble d = frequency [(2, doubleDouble), (1, doubleInteger)]
     where doubleDouble = do
-              divisorDbl <- suchThat arbitrary (/=0)
+              divisorDbl <- suchThat genBigDecimal (/=0)
               return (DoubleValue (d * divisorDbl), DoubleValue divisorDbl)
           doubleInteger = do
               divisorInt <- suchThat arbitrary (/=0) :: Gen Integer
@@ -220,24 +236,22 @@ genMathExpr depth total = oneof [ makeAddGen      depth total
                                 ]
 
 instance Arbitrary Total where
-    arbitrary = oneof [IntegerTotal <$> arbitrary, DoubleTotal <$> arbitrary]
+    arbitrary = oneof [DoubleTotal <$> arbitrary, DoubleTotal <$> arbitrary]
 
 data TestNumExpr = TestNumExpr Total Expression deriving (Show)
 
 totalMatchesResult :: Total -> Expression -> Bool
 totalMatchesResult (DoubleTotal total) (DoubleValue testVal) =
-    total D.~== testVal
-    -- let tolerance = 0.001 :: Double
-    --     minVal = total - tolerance
-    --     maxVal = total + tolerance
-    --  in (testVal >= minVal && testVal <= maxVal)
+    let d1 = realToFrac total :: Double
+        d2 = realToFrac testVal :: Double
+     in d1 D.~== d2
 totalMatchesResult (IntegerTotal total) (IntegerValue testVal) =
     total == testVal
 totalMatchesResult _ _ = False
 
 instance Arbitrary TestNumExpr where
     arbitrary = do
-        depth <- suchThat arbitrary (\a -> a >= 0 && a <= 3) :: Gen Integer
+        depth <- suchThat arbitrary (\a -> a >= 0 && a <= 12) :: Gen Integer
         total <- arbitrary
         expr  <- genMathExpr depth total
         return $ TestNumExpr total expr
@@ -250,7 +264,7 @@ exprToString (Add a b)        = parensWithOp a b "+"
 exprToString (Multiply a b)   = parensWithOp a b "*"
 exprToString (Divide a b)     = parensWithOp a b "/"
 
-doubleValueToString = numValueToString :: Double -> String
+doubleValueToString = numValueToString :: BigDecimal -> String
 integerValueToString = numValueToString :: Integer -> String
 
 numValueToString :: (Num a, Ord a, Show a) => a -> String
@@ -269,9 +283,10 @@ readDepth a = readDepth' >>= validateDepth
 
 readTotal :: String -> Either String Total
 readTotal a =
-    (fmap IntegerTotal (readEither a :: Either String Integer)) <|>
-    (fmap DoubleTotal  (readEither a :: Either String Double))  <|>
+    (fmap IntegerTotal  (readEither a :: Either String Integer))     <|>
+    (fmap bigFloatTotal (readEither a :: Either String Double))  <|>
     Left ("Not a valid total: " ++ a)
+    where bigFloatTotal = DoubleTotal . realToFrac
 
 showValue (DoubleValue  d) = show d
 showValue (IntegerValue i) = show i

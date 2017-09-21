@@ -2,19 +2,22 @@
 -- {-# LANGUAGE GADTs #-}
 -- {-# LANGUAGE StandaloneDeriving #-}
 
-module AST (AST(..), Main(..),  Block(..), Statement(..), Expression(..)) where
+module AST (AST(..), Main(..),  Block(..), Statement(..), Expression(..), BigDecimal, BigFloat, Prec50) where
 
+import Data.Number.BigFloat (BigFloat, Prec50)
 import Error
+
+type BigDecimal = BigFloat Prec50
 
 data Expression = Add          Expression Expression |
                   Subtract     Expression Expression |
                   Multiply     Expression Expression |
                   Divide       Expression Expression |
-                  BooleanValue Bool    |
-                  DoubleValue  Double  |
-                  IntegerValue Integer |
-                  StringValue  String  |
-                  VarValue     String  |
+                  BooleanValue Bool       |
+                  DoubleValue  BigDecimal |
+                  IntegerValue Integer    |
+                  StringValue  String     |
+                  VarValue     String     |
                   Invalid      LangageError deriving (Eq, Ord, Show)
 
 -- data Else = ElseIf Expression Block Else |
@@ -24,9 +27,9 @@ data Expression = Add          Expression Expression |
 --
 -- data If = If Expression Block Else deriving (Eq, Ord, Show)
 
-data ExprResult = ExprResBoolean Bool    |
-                  ExprResDouble  Double  |
-                  ExprResInteger Integer |
+data ExprResult = ExprResBoolean Bool       |
+                  ExprResDouble  BigDecimal |
+                  ExprResInteger Integer    |
                   ExprResInvalid LangageError  deriving (Eq, Ord, Show)
 
 data Statement = PrintStatement  Expression        |
