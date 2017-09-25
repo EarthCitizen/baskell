@@ -1,6 +1,6 @@
 module Error where
 
-data LangageError = DivideByZeroError String | TypeMismatchError String deriving (Eq, Ord, Show)
+data LanguageError = DivideByZeroError String | TypeMismatchError String deriving (Eq, Ord, Show)
 
 errMsgDivideByZero = "Divide by 0 error"
 

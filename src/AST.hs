@@ -17,8 +17,7 @@ data Expression = Add           Expression Expression |
                   FloatingValue BigDecimal |
                   IntegerValue  Integer    |
                   StringValue   String     |
-                  VarValue      String     |
-                  Invalid       LangageError deriving (Eq, Ord, Show)
+                  VarValue      String     deriving (Eq, Ord, Show)
 
 -- data Else = ElseIf Expression Block Else |
 --             Else Block |
@@ -30,7 +29,7 @@ data Expression = Add           Expression Expression |
 data ExprResult = ExprResBoolean Bool       |
                   ExprResDouble  BigDecimal |
                   ExprResInteger Integer    |
-                  ExprResInvalid LangageError  deriving (Eq, Ord, Show)
+                  ExprResInvalid LanguageError  deriving (Eq, Ord, Show)
 
 data Statement = PrintStatement  Expression        |
                  VarStatement    String Expression |
