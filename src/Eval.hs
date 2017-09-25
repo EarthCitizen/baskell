@@ -1,18 +1,18 @@
 module Eval where
 
+import Control.Monad (join)
+
 import AST
 import Debug.Trace
 import Error
 
-expressionToString :: Expression -> String
-expressionToString (BooleanValue True) = "true"
-expressionToString (BooleanValue False) = "false"
-expressionToString (IntegerValue v) = show v
-expressionToString (FloatingValue v) = show v
-expressionToString (StringValue v) = v
-expressionToString (Invalid (DivideByZeroError v)) = v
-expressionToString (Invalid (TypeMismatchError v)) = v
-expressionToString e = expressionToString $ eval e
+expressionToString :: Expression -> Either LanguageError String
+expressionToString (BooleanValue True)  = Right "true"
+expressionToString (BooleanValue False) = Right "false"
+expressionToString (IntegerValue v)     = Right $ show v
+expressionToString (FloatingValue v)    = Right $ show v
+expressionToString (StringValue v)      = Right v
+expressionToString e = eval e >>= expressionToString
 
 lookupVarValue :: String -> Expression
 lookupVarValue "x" = StringValue "Hello World!"
@@ -31,52 +31,60 @@ integerSub = (-) :: IntegerBinOp
 integerMul = (*) :: IntegerBinOp
 integerDiv = div :: IntegerBinOp
 
-evalM_ :: Expression -> Either LangageError Expression
-evalM_ e = let ev = eval e
-          in case ev of
-               Invalid err -> Left err
-               _ -> Right ev
+type EvalResult = Either LanguageError Expression
 
-eval :: Expression -> Expression
-eval v@(BooleanValue _)  = v
-eval v@(FloatingValue _) = v
-eval v@(IntegerValue _)  = v
-eval v@(StringValue _)   = v
+-- evalM_ :: Expression -> EvalResult
+-- evalM_ e = let ev = eval e
+--           in case ev of
+--                Invalid err -> Left err
+--                _ -> Right ev
+
+eval :: Expression -> EvalResult
+eval v@(BooleanValue _)  = Right $ v
+eval v@(FloatingValue _) = Right $ v
+eval v@(IntegerValue _)  = Right $ v
+eval v@(StringValue _)   = Right $ v
 eval (VarValue n)        = eval $ lookupVarValue n
-eval v@(Invalid _)       = v
 eval v@(Add _ _)         = evalAdd v
 eval v@(Subtract _ _)    = evalSubtract v
 eval v@(Multiply _ _)    = evalMultiply v
 eval v@(Divide _ _)      = evalDivide v
 
+leftDivZeroError = Left  . DivideByZeroError :: String     -> EvalResult
+leftTypeMisError = Left  . TypeMismatchError :: String     -> EvalResult
+rightFValue      = Right . FloatingValue     :: BigDecimal -> EvalResult
+rightIValue      = Right . IntegerValue      :: Integer    -> EvalResult
 
-evalNumbersWith :: Expression -> Expression -> DoubleBinOp -> IntegerBinOp -> Expression
-evalNumbersWith a b fndOp fniOp = evalNumbers a b
-    where evalNumbers i@(Invalid _) _ = i
-          evalNumbers _ i@(Invalid _) = i
-          evalNumbers (StringValue _) _  = Invalid $ TypeMismatchError errMsgNoStringInNum
-          evalNumbers _ (StringValue _)  = Invalid $ TypeMismatchError errMsgNoStringInNum
-          evalNumbers (BooleanValue _) _ = Invalid $ TypeMismatchError errMsgNoBooleanInNum
-          evalNumbers _ (BooleanValue _) = Invalid $ TypeMismatchError errMsgNoBooleanInNum
-          evalNumbers (FloatingValue x) (FloatingValue y) = FloatingValue (fndOp x y)
-          evalNumbers (FloatingValue x) (IntegerValue y)  = FloatingValue (fndOp x (fromInteger y))
-          evalNumbers (IntegerValue x)  (FloatingValue y) = FloatingValue (fndOp (fromInteger x) y)
-          evalNumbers (IntegerValue x)  (IntegerValue y)  = IntegerValue (fniOp x y)
-          evalNumbers x y = evalNumbers (eval x) (eval y)
+evalNumbersWith :: Expression -> Expression -> DoubleBinOp -> IntegerBinOp -> EvalResult
+-- evalNumbersWith a b fndOp fniOp = join $ evalNumbers <$> (eval a) <*> (eval b)
+evalNumbersWith a b fndOp fniOp =
+    do
+        ea <- eval a
+        eb <- eval b
+        evalNumbers ea eb
+    where evalNumbers :: Expression -> Expression -> EvalResult
+          evalNumbers (StringValue _) _  = leftTypeMisError errMsgNoStringInNum
+          evalNumbers _ (StringValue _)  = leftTypeMisError errMsgNoStringInNum
+          evalNumbers (BooleanValue _) _ = leftTypeMisError errMsgNoBooleanInNum
+          evalNumbers _ (BooleanValue _) = leftTypeMisError errMsgNoBooleanInNum
+          evalNumbers (FloatingValue x) (FloatingValue y) = rightFValue (fndOp x y)
+          evalNumbers (FloatingValue x) (IntegerValue  y) = rightFValue (fndOp x (fromInteger y))
+          evalNumbers (IntegerValue  x) (FloatingValue y) = rightFValue (fndOp (fromInteger x) y)
+          evalNumbers (IntegerValue  x) (IntegerValue  y) = rightIValue (fniOp x y)
 
-evalAdd :: Expression -> Expression
+evalAdd :: Expression -> EvalResult
 evalAdd (Add a b) = evalNumbersWith a b doubleAdd integerAdd
 
-evalSubtract :: Expression -> Expression
+evalSubtract :: Expression -> EvalResult
 evalSubtract (Subtract a b) = evalNumbersWith a b doubleSub integerSub
 
-evalMultiply :: Expression -> Expression
+evalMultiply :: Expression -> EvalResult
 evalMultiply (Multiply a b) = evalNumbersWith a b doubleMul integerMul
 
-evalDivide :: Expression -> Expression
+evalDivide :: Expression -> EvalResult
 evalDivide (Divide a b) = evalDivideCheckZero a b
 
-evalDivideCheckZero :: Expression -> Expression -> Expression
-evalDivideCheckZero (_) (IntegerValue 0)    = Invalid $ DivideByZeroError errMsgDivideByZero
-evalDivideCheckZero (_) (FloatingValue 0.0) = Invalid $ DivideByZeroError errMsgDivideByZero
+evalDivideCheckZero :: Expression -> Expression -> EvalResult
+evalDivideCheckZero (_) (IntegerValue 0)    = leftDivZeroError errMsgDivideByZero
+evalDivideCheckZero (_) (FloatingValue 0.0) = leftDivZeroError errMsgDivideByZero
 evalDivideCheckZero a b = evalNumbersWith a b doubleDiv integerDiv

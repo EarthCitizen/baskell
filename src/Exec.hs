@@ -32,9 +32,9 @@ execStatement NoOp = return $ Right ()
 
 execPrintStatement :: Statement -> IO (Either LanguageError ())
 execPrintStatement (PrintStatement e) = runEitherT $ do
-    case eval e of
-        Invalid err -> left err
-        ev -> lift $ putStrLn $ expressionToString $ ev
+    case expressionToString e of
+        Left err -> left err
+        Right ev -> lift $ putStrLn ev
     right ()
 
 -- execIf :: If -> IO (Either LanguageError ())
@@ -45,8 +45,8 @@ execPrintStatement (PrintStatement e) = runEitherT $ do
 
 execIfStatement :: Expression -> Block -> Statement -> IO (Either LanguageError ())
 execIfStatement expr block els = case eval expr of
-    BooleanValue True -> execBlock block
-    BooleanValue False -> execStatement els
+    Right (BooleanValue True)  -> execBlock block
+    Right (BooleanValue False) -> execStatement els
         -- ElseIf nextExpr nextBlock nextEls -> execBranch nextExpr nextBlock nextEls
         -- EndIf -> return $ Right ()
     _ -> return $ Left $ TypeMismatchError errMsgNoNumberInBool
