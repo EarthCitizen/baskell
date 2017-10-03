@@ -33,12 +33,6 @@ integerDiv = div :: IntegerBinOp
 
 type EvalResult = Either LanguageError Expression
 
--- evalM_ :: Expression -> EvalResult
--- evalM_ e = let ev = eval e
---           in case ev of
---                Invalid err -> Left err
---                _ -> Right ev
-
 eval :: Expression -> EvalResult
 eval v@(BooleanValue _)  = Right $ v
 eval v@(FloatingValue _) = Right $ v
