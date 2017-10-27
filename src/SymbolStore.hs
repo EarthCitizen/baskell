@@ -2,7 +2,7 @@
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module SymbolStore where
+module SymbolStore (SymbolTable(..), Symbol, VarTable, getSymbolValue, setSymbolValue) where
 
 import qualified Data.Map.Strict as M
 

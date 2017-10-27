@@ -43,7 +43,7 @@ test-suite baskell-test
   type:                exitcode-stdio-1.0
   hs-source-dirs:      test
   main-is:             Spec.hs
-  other-modules:       EvalSpec, ExecSpec, SymbolStoreSpec, Gen
+  other-modules:       EvalSpec, ExecSpec, SymbolStoreSpec, SymbolStoreSpecLib, Gen
   build-depends:       base
                      , baskell
                      , containers
