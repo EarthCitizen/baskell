@@ -3,11 +3,14 @@ module SymbolStoreSpecLib where
 import Debug.Trace
 
 import qualified Data.Map.Strict as M
-import Data.List (intersect)
+import Data.List (all, intersect)
 import Control.Applicative ((<*>))
 import Test.QuickCheck
 import SymbolStore (SymbolTable(..), Symbol, VarTable)
 import AST (Expression(..))
+
+shouldAllBe :: (Eq a) => [a] -> a -> Bool
+shouldAllBe xs x = all (\e -> e == x) xs
 
 genEmptyVarTable :: Gen VarTable
 genEmptyVarTable = oneof [ return $ MutableSymbolTable M.empty
@@ -46,22 +49,28 @@ insertSEs ses (SymbolStack ss) =
 genVarTableWithValues :: [(Symbol, Expression)] -> Gen VarTable
 genVarTableWithValues []  = genEmptyVarTable
 genVarTableWithValues sel = do
-    vt <- genEmptyVarTable
-    genSEL <- genSEListWithValues sel
-    return $ insertSEs genSEL vt
+    vt   <- genEmptyVarTable
+    gsel <- genSEListWithValues sel
+    return $ insertSEs gsel vt
 
-
+getVarTableWithKnownValues :: Gen ([(Symbol, Expression)], VarTable)
+getVarTableWithKnownValues = do
+    ln   <- suchThat arbitrary (>0)
+    ksel <- genUniqueSymbolExprList ln
+    gsel <- genSEListWithValues ksel
+    vt   <- genVarTableWithValues gsel
+    return $ (ksel, vt)
 
 genSymbol :: Gen Symbol
 genSymbol = do
+    let leadChrs = ['A'..'Z'] ++ ['a'..'z'] ++ ['_']
+    let bodyChrs = leadChrs ++ ['0'..'9']
     prefix <- oneof [ return ""
                     , resize 30 $ listOf $ return $ '_'
                     ]
-    body   <- resize 60 $ listOf $ elements $ (['A'..'Z'] ++ ['a'..'z'])
-    suffix <- oneof [ return ""
-                    , resize 60 $ listOf $ elements ['0'..'9']
-                    ]
-    return $ prefix ++ body ++ suffix
+    lead   <- elements leadChrs
+    body   <- resize 60 $ listOf $ elements bodyChrs
+    return $ prefix ++ [lead] ++ body
 
 genExpression :: Gen Expression
 genExpression = IntegerValue <$> arbitrary
@@ -73,10 +82,25 @@ genMap = do
     exprs   <- vectorOf sz $ oneof [ IntegerValue <$> arbitrary ]
     return $ M.fromList $ zip symbols exprs
 
+genUniqueSymbolList :: Int -> Gen [Symbol]
+genUniqueSymbolList ln | ln <= 0 = return []
+genUniqueSymbolList ln = do
+    genSymbolsNotIn ln []
+  where
+    genSymbolsNotIn 0 ss = return []
+    genSymbolsNotIn l ss = do
+        sym   <- suchThat genSymbol $ \s -> s `notElem` ss
+        usyms <- genSymbolsNotIn (l - 1) ([sym] ++ ss)
+        return $ [sym] ++ usyms
 
+genUniqueSymbolExprList :: Int -> Gen [(Symbol, Expression)]
+genUniqueSymbolExprList ln = do
+    usyms <- genUniqueSymbolList ln
+    exprs <- vectorOf ln $ genExpression
+    return $ zipWith (,) usyms exprs
 
-genSymbolExprList :: Int -> Gen [(Symbol, Expression)]
-genSymbolExprList len = vectorOf len $ (,) <$> genSymbol <*> genExpression
+-- genSymbolExprList :: Int -> Gen [(Symbol, Expression)]
+-- genSymbolExprList len = vectorOf len $ (,) <$> genSymbol <*> genExpression
 
 insertAt :: Int -> a -> [a] -> [a]
 insertAt pos _ xs | pos < 0 = xs
@@ -94,9 +118,8 @@ insertFromPosList (p:ps) (x1:xs1) xs2 =
 genSEListWithValues :: [(Symbol, Expression)] -> Gen [(Symbol, Expression)]
 genSEListWithValues statics = do
     ln  <- suchThat arbitrary (>=0)
-    svl <- suchThat (genSymbolExprList ln) (`noSymbolOverlapWith` statics)
-    pl  <- vectorOf (length statics) $ suchThat arbitrary (>=0)
-    return $ insertFromPosList pl statics svl
+    svl <- suchThat (genUniqueSymbolExprList ln) (`noSymbolOverlapWith` statics)
+    shuffle $ svl ++ statics
   where
     noSymbolOverlapWith = \genSvl staSvl ->
         let genSyms  = (fst <$> genSvl)
