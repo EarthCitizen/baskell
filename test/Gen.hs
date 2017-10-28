@@ -15,7 +15,7 @@ import Text.Read (readEither, readMaybe)
 import qualified Data.AEq as D
 import Debug.Trace
 
-data Params = Params { getDepth :: Integer
+data Params = Params { getDepth :: Depth
                      , getTotal :: Total
                      } deriving (Eq, Show)
 
@@ -193,7 +193,7 @@ divideConfig = OpConfig
              , getCons = Divide
              }
 
-type Depth = Integer
+type Depth = Int
 
 makeOpGen :: OpConfig -> Depth -> Total -> Gen Expression
 makeOpGen tc depth tot
@@ -247,7 +247,8 @@ totalMatchesResult _ _ = False
 
 instance Arbitrary TestNumExpr where
     arbitrary = do
-        depth <- suchThat arbitrary (\a -> a >= 0 && a <= 12) :: Gen Integer
+        sz    <- getSize
+        depth <- suchThat arbitrary (\a -> a >= 0 && a <= sz)
         total <- arbitrary
         expr  <- genMathExpr depth total
         return $ TestNumExpr total expr
@@ -270,9 +271,9 @@ numValueToString value
 
 parensWithOp a b op = "(" ++ exprToString a ++ op ++ exprToString b ++ ")"
 
-readDepth :: String -> Either String Integer
+readDepth :: String -> Either String Depth
 readDepth a = readDepth' >>= validateDepth
-    where readDepth' = (readEither a :: Either String Integer) <|> Left ("Not a valid depth: " ++ a)
+    where readDepth' = (readEither a :: Either String Depth) <|> Left ("Not a valid depth: " ++ a)
           validateDepth d
               | d >= 0    = Right d
               | otherwise = Left "Depth must be >= 0"
