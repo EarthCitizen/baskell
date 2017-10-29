@@ -42,7 +42,7 @@ setSymbolValue k v (MutableSymbolTable   { getTable = st }) =
     return $ MutableSymbolTable $ M.insert k v st
 setSymbolValue k v (ImmutableSymbolTable { getTable = st }) =
     case M.member k st of
-        True  -> Left $ BuiltInSymbolError $ "Symbol is read-only"
+        True  -> Left $ ReadOnlySymbolError $ "Symbol is read-only"
         False -> return $ ImmutableSymbolTable $ M.insert k v st
 
 
@@ -67,5 +67,5 @@ setSymbolValue k v (ImmutableSymbolTable { getTable = st }) =
 --     setSymbolValue k v (MutableSymbolTable   { getTable = st }) = return $ MutableSymbolTable $ M.insert k v st
 --     setSymbolValue k v (ImmutableSymbolTable { getTable = st }) =
 --         case M.member k st of
---             True  -> Left $ BuiltInSymbolError $ "Symbol is read-only"
+--             True  -> Left $ ReadOnlySymbolError $ "Symbol is read-only"
 --             False -> return $ ImmutableSymbolTable $ M.insert k v st

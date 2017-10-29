@@ -1,6 +1,6 @@
 module Error where
 
-data LanguageError = BuiltInSymbolError  String
+data LanguageError = ReadOnlySymbolError String
                    | DivideByZeroError   String
                    | SymbolNotFoundError String
                    | TypeMismatchError   String
