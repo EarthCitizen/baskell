@@ -26,6 +26,7 @@ spec = do
                     (getSymbolValue "x" st) `shouldBe` (Left $ SymbolNotFoundError "Symbol not found: x")
         context "when not empty, with expected symbol" $ do
             describe "getSymbolValue" $ do
-                modifyMaxSuccess (const 10000) $ it "returns values for symbol" $ forAll getVarTableWithKnownValues $ \(kvs, st) ->
-                    let results = (\(s, e) -> (getSymbolValue s st) == Right e) <$> kvs
-                     in results `shouldAllBe` True
+                modifyMaxSuccess (const 10000) $ do
+                    it "returns values for symbol" $ forAll getVarTableWithKnownValues $ \(kvs, st) ->
+                        let results = (\(s, e) -> (getSymbolValue s st) == Right e) <$> kvs
+                         in results `shouldAllBe` True
