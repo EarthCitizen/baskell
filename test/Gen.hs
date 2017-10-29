@@ -248,7 +248,7 @@ totalMatchesResult _ _ = False
 instance Arbitrary TestNumExpr where
     arbitrary = do
         sz    <- getSize
-        depth <- suchThat arbitrary (\a -> a >= 0 && a <= sz)
+        depth <- choose (0, sz)
         total <- arbitrary
         expr  <- genMathExpr depth total
         return $ TestNumExpr total expr
