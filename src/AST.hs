@@ -29,7 +29,7 @@ data Expression = Add           Expression Expression |
 data ExprResult = ExprResBoolean Bool       |
                   ExprResDouble  BigDecimal |
                   ExprResInteger Integer    |
-                  ExprResInvalid LanguageError  deriving (Eq, Ord, Show)
+                  ExprResInvalid Error  deriving (Eq, Ord, Show)
 
 data Statement = PrintStatement  Expression        |
                  VarStatement    String Expression |

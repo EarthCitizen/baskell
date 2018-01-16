@@ -42,7 +42,7 @@ spec = do
             it "returns FloatingValue containing the integer and double added" $ property $ property $
                 \x y -> eval (Add (IntegerValue x) (FloatingValue y)) == (Right $ FloatingValue (realToFrac x + y))
         context "when passed a valid numeric expression" $ do
-            modifyMaxSize (const 12) $ modifyMaxSuccess (const 30000) $ do
+            modifyMaxSize (const 10) $ modifyMaxSuccess (const 30000) $ do
                 it "returns expected total" $ property $
                     \(TestNumExpr total expr) -> case eval expr of
                         Left _  -> False

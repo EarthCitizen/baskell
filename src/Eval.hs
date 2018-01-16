@@ -6,7 +6,7 @@ import AST
 import Debug.Trace
 import Error
 
-expressionToString :: Expression -> Either LanguageError String
+expressionToString :: Expression -> Either Error String
 expressionToString (BooleanValue True)  = Right "true"
 expressionToString (BooleanValue False) = Right "false"
 expressionToString (IntegerValue v)     = Right $ show v
@@ -31,7 +31,7 @@ integerSub = (-) :: IntegerBinOp
 integerMul = (*) :: IntegerBinOp
 integerDiv = div :: IntegerBinOp
 
-type EvalResult = Either LanguageError Expression
+type EvalResult = Either Error Expression
 
 eval :: Expression -> EvalResult
 eval v@(BooleanValue _)  = Right $ v
